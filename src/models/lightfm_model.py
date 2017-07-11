@@ -72,8 +72,8 @@ class LightWrapper(BaseEstimator, ClassifierMixin):
         :param frame: 
         :return: 
         """
-        row = X[0]
-        col = X[1]
+        row = X[:, 0]
+        col = X[:, 1]
 
         mat = sp.lil_matrix(self.shape, dtype=np.int32)
         mat[row, col] = 1
