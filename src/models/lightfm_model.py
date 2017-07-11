@@ -1,12 +1,16 @@
 from __future__ import division
 from __future__ import print_function
 
+import logging
 import numpy as np
 import scipy.sparse as sp
 from lightfm import LightFM
 from lightfm.evaluation import precision_at_k
 from sklearn.base import BaseEstimator, ClassifierMixin
 
+logger = logging.getLogger(__name__)
+log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+logging.basicConfig(level=logging.INFO, format=log_fmt)
 
 class LightWrapper(BaseEstimator, ClassifierMixin):
     """
