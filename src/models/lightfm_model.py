@@ -18,15 +18,14 @@ class LightWrapper(BaseEstimator, ClassifierMixin):
     """
     def __init__(self, no_components=10, k=5, n=10, learning_schedule='adagrad', loss='wrap', learning_rate=0.05,
                  rho=0.95, epsilon=1e-06, item_alpha=1e-05, user_alpha=1e-05, max_sampled=10, random_state=None,
-                 epochs=10, user_features=None, item_features=None, verbose=False, num_threads=1, users=None, items=None):
+                 epochs=10, user_features=None, item_features=None, verbose=False, num_threads=1, shape=None):
 
         self.usr_ftrs = user_features
         self.itm_ftrs = item_features
         self.epochs = epochs
         self.verbose = verbose
         self.num_threads = num_threads
-        self.users = users
-        self.items = items
+        self.shape = shape
 
         # sklearn hacks
         self.random_state = random_state
@@ -55,8 +54,8 @@ class LightWrapper(BaseEstimator, ClassifierMixin):
 
     def predict(self, X):
 
-        user_ids = X.ip.astype('category', categories=self.users).cat.codes
-        item_ids = X.vid.astype('category', categories=self.items).cat.codes
+        user_ids = X[0]
+        item_ids = X[1]
 
         return self.model.predict(user_ids, item_ids, num_threads=self.num_threads)
 
@@ -66,17 +65,17 @@ class LightWrapper(BaseEstimator, ClassifierMixin):
         test_precision = precision_at_k(self.model, test_interactions, self.train_interactions, k=10, num_threads=self.num_threads).mean()
         return test_precision
 
-    def convert(self, frame):
+    def convert(self, X):
 
         """
         converts pandas dataframe to coo sparse matrix
         :param frame: 
         :return: 
         """
-        row = frame.ip.astype('category', categories=self.users).cat.codes
-        col = frame.vid.astype('category', categories=self.items).cat.codes
+        row = X[0]
+        col = X[1]
 
-        mat = sp.lil_matrix((len(self.users), len(self.items)), dtype=np.int32)
+        mat = sp.lil_matrix((self.shape), dtype=np.int32)
         mat[row, col] = 1
 
         return mat.tocoo()

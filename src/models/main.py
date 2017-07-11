@@ -26,23 +26,23 @@ def cli(ctx, config):
 @click.option('-v', '--verbose', default=10, help='level of verbosity')
 def tune(ctx, input_file, model, loss, jobs, iter, verbose):
 
-    df = pd.read_csv(input_file)
+    df = pd.read_csv(input_file, usecols=['ip', 'vid'])
+    users_count = df.ip.unique().shape[0]; items_count = df.vid.unique().shape[0]
+    logger.info('Users: {}, items: {}, model: {}, loss: {}, jobs: {}, iter: {}'.format(users_count, items_count, model, loss, jobs, iter))
+
     if model == 'lightfm':
 
-        # users and items ids
-        users = list(sorted(df.ip.unique()))
-        items = list(sorted(df.vid.unique()))
-
         # for tuning we utilize sklearn parallelism, so using default one thread
-        clf = LightWrapper(loss=loss, users=users, items=items)
+        clf = LightWrapper(loss=loss, shape=())
 
         # take first N items (shuffled by sort) for test and rest for training TODO - this is really bad ... ned CV
         test = df.groupby('ip', sort=True, as_index=False).head(5)
         train = df[~df.isin(test)].dropna()
+
         cfg = ctx.obj.get('tune_group')[model]
         cfg['n_iter_search'] = iter; cfg['n_jobs'] = jobs; cfg['verbose'] = verbose
 
-        random_search(clf, df, [[train.index, test.index]], **cfg)
+        random_search(clf, df.values, [[train.index.values, test.index.values]], **cfg)
     else: raise Exception('only lightfm supported currently')
 
 @cli.command(help='training recommender systems')
