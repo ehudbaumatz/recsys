@@ -75,7 +75,7 @@ class LightWrapper(BaseEstimator, ClassifierMixin):
         row = X[0]
         col = X[1]
 
-        mat = sp.lil_matrix((self.shape), dtype=np.int32)
+        mat = sp.lil_matrix(self.shape, dtype=np.int32)
         mat[row, col] = 1
 
         return mat.tocoo()

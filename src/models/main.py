@@ -33,7 +33,7 @@ def tune(ctx, input_file, model, loss, jobs, iter, verbose):
     if model == 'lightfm':
 
         # for tuning we utilize sklearn parallelism, so using default one thread
-        clf = LightWrapper(loss=loss, shape=())
+        clf = LightWrapper(loss=loss, shape=(users_count, items_count))
 
         # take first N items (shuffled by sort) for test and rest for training TODO - this is really bad ... ned CV
         test = df.groupby('ip', sort=True, as_index=False).head(5)
