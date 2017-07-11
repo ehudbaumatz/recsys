@@ -1,4 +1,3 @@
-import timeit
 import click
 import logging
 
@@ -17,24 +16,15 @@ logger = logging.getLogger(__name__)
 def cli(ctx, config):
     ctx.obj = yaml.load(config)
 
-
-
-
-# @cli.command(
-#     help='Runs data processing scripts to turn raw data from input_file into cleaned data ready to be analyzed (saved in output_file)')
-# @click.pass_context
-# @click.argument('input_file', type=click.Path(exists=True), default='../../data/raw/latest.train.tbl')
-# @click.argument('execute_output_file', type=click.File('a'), default='../../data/processed/latest_exec.train.dat')
-# @click.argument('load_output_file', type=click.File('a'), default='../../data/processed/latest_load.train.dat')
-# def tune(ctx, input_file, execute_output_file, load_output_file):
-
-
 @cli.command(help='hyper-parameter tuning on a sklearn model')
 @click.pass_context
 @click.argument('input_file', type=click.Path(exists=True), default='../../data/processed/train.csv')
 @click.option('-m', '--model', default='lightfm', help='model to tune')
 @click.option('-l', '--loss', default='warp', help='loss to optimize')
-def tune(ctx, input_file, model, loss):
+@click.option('-j', '--jobs', default=-1, help='number of threads')
+@click.option('-i', '--iter', default=10, help='number of hyper parameter search iterations')
+@click.option('-v', '--verbose', default=10, help='level of verbosity')
+def tune(ctx, input_file, model, loss, jobs, iter, verbose):
 
     df = pd.read_csv(input_file)
     if model == 'lightfm':
@@ -49,8 +39,10 @@ def tune(ctx, input_file, model, loss):
         # take first N items (shuffled by sort) for test and rest for training TODO - this is really bad ... ned CV
         test = df.groupby('ip', sort=True, as_index=False).head(5)
         train = df[~df.isin(test)].dropna()
+        cfg = ctx.obj.get('tune_group')[model]
+        cfg['n_iter_search'] = iter; cfg['n_jobs'] = jobs; cfg['verbose'] = verbose
 
-        random_search(clf, df, [train.index, test.index], **ctx.obj.get('tune_group')[model])
+        random_search(clf, df, [[train.index, test.index]], **cfg)
     else: raise Exception('only lightfm supported currently')
 
 @cli.command(help='training recommender systems')
@@ -77,3 +69,5 @@ if __name__ == '__main__':
     # load up the .env entries as environment variables
     load_dotenv(find_dotenv())
     cli()
+    # tune()
+
