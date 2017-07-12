@@ -38,8 +38,8 @@ def cli(ctx, config):
 @click.option('-j', '--jobs', default=-1, help='number of threads')
 @click.option('-i', '--iter', default=10, help='number of hyper parameter search iterations')
 @click.option('-v', '--verbose', default=10, help='level of verbosity')
-@click.option('-t', '--threads', default=10, help='model threads')
-def tune(ctx, input_file, model, loss, jobs, iter, verbose):
+@click.option('-t', '--threads', default=1, help='model threads')
+def tune(ctx, input_file, model, loss, jobs, iter, verbose, threads):
 
     df = pd.read_csv(input_file, usecols=['ip', 'vid'])
 
@@ -56,7 +56,7 @@ def tune(ctx, input_file, model, loss, jobs, iter, verbose):
     if model == 'lightfm':
 
         # for tuning we utilize sklearn parallelism, so using default one thread
-        clf = LightWrapper(loss=loss, shape=(df.ip.shape[0], df.vid.shape[0]))
+        clf = LightWrapper(loss=loss, shape=(df.ip.shape[0], df.vid.shape[0]), num_threads=threads)
 
         # take first N items (shuffled by sort) for test and rest for training TODO - this is really bad ... ned CV
         test = df.groupby('ip', sort=True, as_index=False).head(5)
