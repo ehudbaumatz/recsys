@@ -38,6 +38,7 @@ def cli(ctx, config):
 @click.option('-j', '--jobs', default=-1, help='number of threads')
 @click.option('-i', '--iter', default=10, help='number of hyper parameter search iterations')
 @click.option('-v', '--verbose', default=10, help='level of verbosity')
+@click.option('-t', '--threads', default=10, help='model threads')
 def tune(ctx, input_file, model, loss, jobs, iter, verbose):
 
     df = pd.read_csv(input_file, usecols=['ip', 'vid'])
