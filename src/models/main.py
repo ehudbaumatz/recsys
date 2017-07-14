@@ -6,7 +6,6 @@ import pandas as pd
 import yaml
 from dotenv import find_dotenv, load_dotenv
 
-
 from lightfm import LightFM
 from lightfm.evaluation import precision_at_k, auc_score
 
@@ -20,7 +19,6 @@ sys.path.insert(0, os.path.abspath('..'))
 from data.datasets import load_movielens, to_sparse_matrix, load_dataset
 
 logger = logging.getLogger(__name__)
-
 
 def evaluate_model(model, train, test):
 
@@ -42,9 +40,6 @@ def evaluate_model(model, train, test):
 @click.pass_context
 def cli(ctx, config):
     ctx.obj = yaml.load(config)
-
-
-
 
 @cli.command(help='validate stuff')
 @click.pass_context
