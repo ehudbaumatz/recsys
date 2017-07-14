@@ -127,10 +127,10 @@ def tune(ctx, input_file, model, loss, jobs, iter, verbose, threads):
 
         # for tuning we utilize sklearn parallelism, so using default one thread
         clf = LightWrapper(loss=loss, shape=(users_count, items_count), num_threads=threads)
-        # cfg = ctx.obj.get('tune_group')[model]
-        # random_search(clf, data, [[train, test]], param_dist=cfg.get('param_dist'), n_iter_search=iter, n_jobs=jobs, verbose=verbose )
-        random_search(clf, df.values, [[train.index.values, test.index.values]], param_dist={"epochs" : [5,4]}, n_iter_search=2, n_jobs=jobs,
-                      verbose=verbose)
+        cfg = ctx.obj.get('tune_group')[model]
+        random_search(clf, df, [[train, test]], param_dist=cfg.get('param_dist'), n_iter_search=iter, n_jobs=jobs, verbose=verbose )
+        # random_search(clf, df.values, [[train.index.values, test.index.values]], param_dist={"epochs" : [5,4]}, n_iter_search=2, n_jobs=jobs,
+        #               verbose=verbose)
     else:
         raise Exception('only lightfm supported currently')
 
