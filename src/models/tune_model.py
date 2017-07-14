@@ -25,17 +25,15 @@ def report(results, n_top=3):
             logger.info("Parameters: {0}".format(results['params'][candidate]))
             logger.info("")
 
-def grid_search(clf, X, cv, **kwargs):
+def grid_search(clf, X, cv, param_dist, n_iter_search=1, n_jobs=-1, verbose=10):
     pass
 
-def random_search(clf, X, cv, **kwargs):
+def random_search(clf, X, cv, param_dist, n_iter_search=1, n_jobs=-1, verbose=10):
 
     # run randomized search
-    random_search = RandomizedSearchCV(clf, cv=cv, param_distributions=kwargs.get('param_dist'),
-                                       n_iter=kwargs.get('n_iter_search'), n_jobs=kwargs.get('n_jobs'), verbose=kwargs.get('verbose'))
+    random_search = RandomizedSearchCV(clf, cv=cv, param_distributions=param_dist, n_iter= n_iter_search, n_jobs = n_jobs, verbose=verbose)
 
     start = time()
-    random_search.fit(X)
-    logger.info("RandomizedSearchCV took %.2f seconds for %d candidates"
-          " parameter settings." % ((time() - start), kwargs.get('n_iter_search')))
+    random_search.fit(X, X[:, 2])
+    logger.info("RandomizedSearchCV took %.2f seconds for %d candidates parameter settings." % ((time() - start), n_iter_search))
     report(random_search.cv_results_)

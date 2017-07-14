@@ -1,3 +1,9 @@
+yaml
+lightfm
+dotenv
+numpy
+pandas
+scipy
 click
 Sphinx
 coverage

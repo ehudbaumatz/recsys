@@ -5,8 +5,12 @@ import logging
 import numpy as np
 import scipy.sparse as sp
 from lightfm import LightFM
-from lightfm.evaluation import precision_at_k
+from lightfm.evaluation import precision_at_k, auc_score
 from sklearn.base import BaseEstimator, ClassifierMixin
+
+import sys, os
+sys.path.insert(0, os.path.abspath('..'))
+from data.datasets import to_sparse_matrix
 
 logger = logging.getLogger(__name__)
 log_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -17,9 +21,10 @@ class LightWrapper(BaseEstimator, ClassifierMixin):
     lightFM model wrapped as an sklearn classifier 
     """
     def __init__(self, no_components=10, k=5, n=10, learning_schedule='adagrad', loss='wrap', learning_rate=0.05,
-                 rho=0.95, epsilon=1e-06, item_alpha=1e-05, user_alpha=1e-05, max_sampled=10, random_state=None,
+                 rho=0.95, epsilon=1e-06, item_alpha=0, user_alpha=0, max_sampled=10, random_state=None,
                  epochs=10, user_features=None, item_features=None, verbose=False, num_threads=1, shape=None):
 
+        self.train = None
         self.usr_ftrs = user_features
         self.itm_ftrs = item_features
         self.epochs = epochs
@@ -44,13 +49,13 @@ class LightWrapper(BaseEstimator, ClassifierMixin):
         self.model = LightFM(no_components, k, n, learning_schedule, loss, learning_rate, rho, epsilon,
                              user_alpha, user_alpha, max_sampled, random_state)
 
-    def fit(self, X):
+    def fit(self, X, y):
 
-        X = self.convert(X)
-        self.model.fit(X, epochs=self.epochs, num_threads=self.num_threads, verbose=self.verbose)
+        train = to_sparse_matrix(X[:, 0], X[:, 1], y, self.shape)
+        self.model.fit(train, epochs=self.epochs, num_threads=self.num_threads, verbose=self.verbose)
 
         # hacking sklearn score interfaces
-        self.train_interactions = X
+        self.train = train
 
     def predict(self, X):
 
@@ -59,23 +64,22 @@ class LightWrapper(BaseEstimator, ClassifierMixin):
 
         return self.model.predict(user_ids, item_ids, num_threads=self.num_threads)
 
-    def score(self, X, **kwargs):
+    def score(self, X, y, **kwargs):
 
-        test_interactions = self.convert(X)
-        test_precision = precision_at_k(self.model, test_interactions, self.train_interactions, k=10, num_threads=self.num_threads).mean()
-        return test_precision
+        test = to_sparse_matrix(X[:, 0], X[:, 1], y, self.shape)
+        return precision_at_k(self.model, test, train_interactions=self.train, k=10).mean()
 
-    def convert(self, X):
+    def evaluate(self, X, y):
 
-        """
-        converts pandas dataframe to coo sparse matrix
-        :param frame: 
-        :return: 
-        """
-        row = X[:, 0]
-        col = X[:, 1]
+        test = to_sparse_matrix(X[:, 0], X[:, 1], y, self.shape)
 
-        mat = sp.lil_matrix(self.shape, dtype=np.int32)
-        mat[row, col] = 1
+        train_precision = precision_at_k(self.model, self.train, k=10).mean()
+        test_precision = precision_at_k(self.model, test, train_interactions=self.train, k=10).mean()
 
-        return mat.tocoo()
+        train_auc = auc_score(self.model, self.train).mean()
+        test_auc = auc_score(self.model, test).mean()
+
+        print('Precision: train %.2f, test %.2f.' % (train_precision, test_precision))
+        print('AUC: train %.2f, test %.2f.' % (train_auc, test_auc))
+
+        return train_precision, test_precision, train_auc, test_auc
