@@ -16,6 +16,11 @@ def load_dataset(path, format='coo', shuffle=True):
         train = to_sparse_matrix(train.user_id.values, train.item_id.values, train.rating.values, shape)
         test = to_sparse_matrix(test.user_id.values, test.item_id.values, test.rating.values, shape)
         return train, test
+    elif format=='ndarray':
+        return df.values, train.index.values, test.index.values
+    else:
+        return df, train, test
+
 
 def split(df, test_samples=10):
 

@@ -116,9 +116,9 @@ def validate(ctx, data_home):
 @click.option('-t', '--threads', default=1, help='model threads')
 def tune(ctx, input_file, model, loss, jobs, iter, verbose, threads):
 
-    df, train, test = load_dataset(input_file)
-    users_count = df.ip.unique().shape[0]
-    items_count = df.vid.unique().shape[0]
+    df, train, test = load_dataset(input_file, format='pandas')
+    users_count = df.user_id.unique().shape[0]
+    items_count = df.item_id.unique().shape[0]
     logger.info(
         'Users: {}, items: {}, train{}, test{}, model: {}, loss: {}, jobs: {}, iter: {}'.format(users_count, items_count, model, loss,
                                                                                jobs, iter, train.shape, test.shape))
@@ -127,14 +127,10 @@ def tune(ctx, input_file, model, loss, jobs, iter, verbose, threads):
 
         # for tuning we utilize sklearn parallelism, so using default one thread
         clf = LightWrapper(loss=loss, shape=(users_count, items_count), num_threads=threads)
-
-
-        cfg = ctx.obj.get('tune_group')[model]
-        cfg['n_iter_search'] = iter
-        cfg['n_jobs'] = jobs
-        cfg['verbose'] = verbose
-
-        random_search(clf, df.values, [[train.index.values, test.index.values]], **cfg)
+        # cfg = ctx.obj.get('tune_group')[model]
+        # random_search(clf, data, [[train, test]], param_dist=cfg.get('param_dist'), n_iter_search=iter, n_jobs=jobs, verbose=verbose )
+        random_search(clf, df.values, [[train.index.values, test.index.values]], param_dist={"epochs" : [5,4]}, n_iter_search=2, n_jobs=jobs,
+                      verbose=verbose)
     else:
         raise Exception('only lightfm supported currently')
 
@@ -151,7 +147,6 @@ def train(ctx, input_file,  model, loss, verbose, threads):
     train, test = load_dataset(input_file)
     logger.info(
         'model: {}, loss: {}, train: {}, test: {}'.format(model, loss, train.shape, test.shape))
-
 
     model = LightFM(loss='warp', learning_rate=0.05)
     model.fit(train, epochs=10, verbose=True)
