@@ -2,7 +2,7 @@ tune_group:
   lightfm:
     param_dist:
       "epochs": [20, 40, 60, 80, 100]
-      "learning_rate": [0.005, 0.001, 0.01, 0.1, 0.2, 0.3]
+      "learning_rate": [0.005, 0.001, 0.01, 0.1]
       "no_components": [10, 20, 40, 80, 100, 200]
       "user_alpha": [0.005, 0.001, 0.01, 0.1, 0.2, 0.3]
       "max_sampled": [10, 20, 30, 40, 50]
