@@ -103,8 +103,7 @@ def tune(ctx, input_file, model, loss, jobs, iter, verbose, threads):
     df, train, test = load_dataset(input_file, format='pandas')
     users_count = df.user_id.unique().shape[0]
     items_count = df.item_id.unique().shape[0]
-    logger.info(
-        'Users: {}, items: {}, train{}, test{}, model: {}, loss: {}, jobs: {}, iter: {}'.format(users_count, items_count, model, loss,
+    logger.info('Users: {}, items: {}, train{}, test{}, model: {}, loss: {}, jobs: {}, iter: {}'.format(users_count, items_count, model, loss,
                                                                                jobs, iter, train.shape, test.shape))
     if model == 'lightfm':
 
@@ -113,8 +112,6 @@ def tune(ctx, input_file, model, loss, jobs, iter, verbose, threads):
         cfg = ctx.obj.get('tune_group')[model]
         random_search(clf, df.values, [[train.index.values, test.index.values]], param_dist=cfg.get('param_dist'),
                       n_iter_search=iter, n_jobs=1, verbose=verbose)
-        # random_search(clf, df.values, [[train.index.values, test.index.values]], param_dist={"epochs" : [5,4]}, n_iter_search=2, n_jobs=jobs,
-        #               verbose=verbose)
     else:
         raise Exception('only lightfm supported currently')
 
