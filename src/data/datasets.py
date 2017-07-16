@@ -5,8 +5,7 @@ import scipy.sparse as sp
 
 def load_dataset(path, format='coo', shuffle=True):
 
-    df = pd.read_csv(path, header=0, names=['user_id', 'item_id'])
-    df.loc[:, 'rating'] = 1 # TODO can we do better by incorporating counts
+    df = pd.read_csv(path)
 
     shape = (df.user_id.unique().shape[0], df.item_id.unique().shape[0])
     if shuffle: df = df.sample(frac=1)
