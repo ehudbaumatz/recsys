@@ -45,18 +45,7 @@ def cli(ctx, config):
 @click.pass_context
 @click.argument('data_home', type=click.Path(exists=True), default='../../data/raw/movielens')
 def validate(ctx, data_home):
-    """
-    validate our solution
-    :param ctx: 
-    :param input_file: 
-    :param model: 
-    :param loss: 
-    :param jobs: 
-    :param iter: 
-    :param verbose: 
-    :param threads: 
-    :return: 
-    """
+
     # matrix creation validation
     df = load_movielens(data_home)
     dic = fetch_movielens(data_home, download_if_missing=True)
@@ -102,7 +91,7 @@ def validate(ctx, data_home):
 
 @cli.command(help='hyper-parameter tuning on a sklearn model')
 @click.pass_context
-@click.argument('input_file', type=click.Path(exists=True), default='../../data/processed/2017.06.50-100.5000.csv')
+@click.argument('input_file', type=click.Path(exists=True), default='../../data/raw/sample.csv')
 @click.option('-m', '--model', default='lightfm', help='model to tune')
 @click.option('-l', '--loss', default='warp', help='loss to optimize')
 @click.option('-j', '--jobs', default=-1, help='number of threads')
@@ -117,14 +106,13 @@ def tune(ctx, input_file, model, loss, jobs, iter, verbose, threads):
     logger.info(
         'Users: {}, items: {}, train{}, test{}, model: {}, loss: {}, jobs: {}, iter: {}'.format(users_count, items_count, model, loss,
                                                                                jobs, iter, train.shape, test.shape))
-
     if model == 'lightfm':
 
         # for tuning we utilize sklearn parallelism, so using default one thread
         clf = LightWrapper(loss=loss, shape=(users_count, items_count), num_threads=threads)
         cfg = ctx.obj.get('tune_group')[model]
         random_search(clf, df.values, [[train.index.values, test.index.values]], param_dist=cfg.get('param_dist'),
-                      n_iter_search=iter, n_jobs=jobs, verbose=verbose)
+                      n_iter_search=iter, n_jobs=1, verbose=verbose)
         # random_search(clf, df.values, [[train.index.values, test.index.values]], param_dist={"epochs" : [5,4]}, n_iter_search=2, n_jobs=jobs,
         #               verbose=verbose)
     else:

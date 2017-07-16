@@ -5,8 +5,7 @@ import scipy.sparse as sp
 
 def load_dataset(path, format='coo', shuffle=True):
 
-    df = pd.read_csv(path)
-
+    df = pd.read_csv(path, usecols=['user_id', 'item_id', 'rating'])
     shape = (df.user_id.unique().shape[0], df.item_id.unique().shape[0])
     if shuffle: df = df.sample(frac=1)
     train, test = split(df)
