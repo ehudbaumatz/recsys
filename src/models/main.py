@@ -111,7 +111,7 @@ def tune(ctx, input_file, model, loss, jobs, iter, verbose, threads):
         clf = LightWrapper(loss=loss, shape=(users_count, items_count), num_threads=threads)
         cfg = ctx.obj.get('tune_group')[model]
         random_search(clf, df.values, [[train.index.values, test.index.values]], param_dist=cfg.get('param_dist'),
-                      n_iter_search=iter, n_jobs=1, verbose=verbose)
+                      n_iter_search=iter, n_jobs=jobs, verbose=verbose)
     else:
         raise Exception('only lightfm supported currently')
 
