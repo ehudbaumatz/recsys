@@ -1,4 +1,5 @@
 import logging
+import multiprocessing
 
 import click
 import numpy as np
@@ -20,13 +21,13 @@ from data.datasets import load_movielens, to_sparse_matrix, load_interactions_da
 
 logger = logging.getLogger(__name__)
 
-def evaluate_model(model, train, test, item_fetures=None, user_features=None):
+def evaluate_model(model, train, test, item_fetures=None, user_features=None, num_threads=1):
 
-    train_precision = precision_at_k(model, train, k=10, user_features=user_features, item_features=item_fetures).mean()
-    test_precision = precision_at_k(model, test, train_interactions=train, k=10, user_features=user_features, item_features=item_fetures).mean()
+    train_precision = precision_at_k(model, train, k=10, user_features=user_features, item_features=item_fetures, num_threads=num_threads).mean()
+    test_precision = precision_at_k(model, test, train_interactions=train, k=10, user_features=user_features, item_features=item_fetures, num_threads=num_threads).mean()
 
-    train_auc = auc_score(model, train, user_features=user_features, item_features=item_fetures).mean()
-    test_auc = auc_score(model, test, train_interactions=train, user_features=user_features, item_features=item_fetures).mean()
+    train_auc = auc_score(model, train, user_features=user_features, item_features=item_fetures, num_threads=num_threads).mean()
+    test_auc = auc_score(model, test, train_interactions=train, user_features=user_features, item_features=item_fetures, num_threads=num_threads).mean()
 
     print('Precision: train %.2f, test %.2f.' % (train_precision, test_precision))
     print('AUC: train %.2f, test %.2f.' % (train_auc, test_auc))
@@ -264,15 +265,16 @@ def train(ctx, input_file, model, loss, verbose, threads):
         'model: {}, loss: {}, item_alpha(L2): {} no_components: {}, learning_rate: {}'.format(model, loss, 1e-6, 30, 0.05))
 
     model = LightFM(loss='warp', learning_rate=0.05, item_alpha=1e-6, no_components=30)
-    model = model.fit(train, epochs=10, verbose=True)
+    threads = multiprocessing.cpu_count() if threads == -1 else threads
+    model = model.fit(train, epochs=10, verbose=True, num_threads=threads)
     logger.info('A pure collaborative filtering model')
-    evaluate_model(model, train, test)
+    evaluate_model(model, train, test, num_threads=threads)
 
 
     model = LightFM(loss='warp', learning_rate=0.05, item_alpha=1e-6, no_components=30)
-    model = model.fit(train, item_features=items, epochs=10, verbose=True)
+    model = model.fit(train, item_features=items, epochs=10, verbose=True, num_threads=threads)
     logger.info('A hybrid model')
-    evaluate_model(model, train, test,item_fetures=items)
+    evaluate_model(model, train, test,item_fetures=items, num_threads=threads)
 
 
 
