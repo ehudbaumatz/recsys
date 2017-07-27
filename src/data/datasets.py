@@ -1,31 +1,51 @@
+from __future__ import unicode_literals # support py2
 import numpy as np
 import pandas as pd
 import os
 import scipy.sparse as sp
+from features.text import GloveVectorizer
 
-def load_dataset(path, format='coo', shuffle=True):
 
-    df = pd.read_csv(path, usecols=['user_id', 'item_id', 'rating'])
+def load_interactions_dataset(path, format='coo', shuffle=True, usecols=None):
+
+    if usecols is None:
+        usecols = ['user_id', 'item_id']
+    df = pd.read_csv(path, usecols=usecols)
+    if 'rating' not in df.columns.values: df.loc[:, 'rating'] = 1
     shape = (df.user_id.unique().shape[0], df.item_id.unique().shape[0])
     if shuffle: df = df.sample(frac=1)
     train, test = split(df)
 
-    if format=='coo':
+    if format == 'coo':
         train = to_sparse_matrix(train.user_id.values, train.item_id.values, train.rating.values, shape)
         test = to_sparse_matrix(test.user_id.values, test.item_id.values, test.rating.values, shape)
         return train, test
-    elif format=='ndarray':
+    elif format == 'ndarray':
         return df.values, train.index.values, test.index.values
     else:
         return df, train, test
 
 
-def split(df, test_samples=10):
+def load_items_features(path, usecols=None, vectorization='glove', embedding_size=300):
 
+    if usecols is None:
+        usecols = ['item_id', 'video_title', 'description', 'keywords', 'iab_category_one', 'iab_category_two']
+    df = pd.read_csv(path, usecols=usecols, index_col='item_id')  # hard coded - should throw since this is a must
+
+    # prepare iterators
+    itr = [([item[1] for item in field.dropna().iteritems()], name, field.dropna().index) for name, field in df.iteritems()]
+
+    if vectorization == 'glove':
+        vectorizer = GloveVectorizer(df.shape[0])
+
+    return vectorizer.fit_transform(itr)
+
+def split(df, test_samples=10):
     test = df.groupby('user_id', sort=False, as_index=False).head(test_samples)
     train = df[~df.isin(test)].dropna()
 
     return train, test
+
 
 def load_movielens(folder):
     """
@@ -59,6 +79,7 @@ def to_sparse_matrix(row, col, label, shape, mat_format='coo'):
     :param mat_format: 
     :return: 
     """
+
     mat = sp.lil_matrix(shape, dtype=np.int32)
     mat[row, col] = label
 
