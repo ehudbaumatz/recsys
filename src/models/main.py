@@ -1,8 +1,9 @@
 import logging
+import multiprocessing
 
 import click
 import numpy as np
-import pandas as pd
+import scipy.sparse as sp
 import yaml
 from dotenv import find_dotenv, load_dotenv
 
@@ -12,21 +13,21 @@ from lightfm.evaluation import precision_at_k, auc_score
 from lightfm_model import LightWrapper
 from tune_model import random_search
 
-from lightfm.datasets import fetch_movielens
+from lightfm.datasets import fetch_movielens, fetch_stackexchange
 import sys, os
 
 sys.path.insert(0, os.path.abspath('..'))
-from data.datasets import load_movielens, to_sparse_matrix, load_dataset
+from data.datasets import load_movielens, to_sparse_matrix, load_interactions_dataset
 
 logger = logging.getLogger(__name__)
 
-def evaluate_model(model, train, test):
+def evaluate_model(model, train, test, item_fetures=None, user_features=None, num_threads=1):
 
-    train_precision = precision_at_k(model, train, k=10).mean()
-    test_precision = precision_at_k(model, test, train_interactions=train, k=10).mean()
+    train_precision = precision_at_k(model, train, k=10, user_features=user_features, item_features=item_fetures, num_threads=num_threads).mean()
+    test_precision = precision_at_k(model, test, train_interactions=train, k=10, user_features=user_features, item_features=item_fetures, num_threads=num_threads).mean()
 
-    train_auc = auc_score(model, train).mean()
-    test_auc = auc_score(model, test).mean()
+    train_auc = auc_score(model, train, user_features=user_features, item_features=item_fetures, num_threads=num_threads).mean()
+    test_auc = auc_score(model, test, train_interactions=train, user_features=user_features, item_features=item_fetures, num_threads=num_threads).mean()
 
     print('Precision: train %.2f, test %.2f.' % (train_precision, test_precision))
     print('AUC: train %.2f, test %.2f.' % (train_auc, test_auc))
@@ -40,6 +41,132 @@ def evaluate_model(model, train, test):
 @click.pass_context
 def cli(ctx, config):
     ctx.obj = yaml.load(config)
+
+
+@cli.command(help='validate stuff')
+@click.pass_context
+@click.argument('data_home', type=click.Path(exists=True), default='../../data/raw/stackexchange')
+def validate_item_features(ctx, data_home):
+
+    data = fetch_stackexchange('crossvalidated',
+                               test_set_fraction=0.1,
+                               indicator_features=False,
+                               tag_features=True, data_home=data_home)
+
+    train = data['train']
+    test = data['test']
+
+    # Set the number of threads; you can increase this
+    # ify you have more physical cores available.
+    NUM_COMPONENTS = 30
+    NUM_EPOCHS = 3
+    ITEM_ALPHA = 1e-6
+
+    # Let's fit a WARP model: these generally have the best performance.
+    model = LightFM(loss='warp',
+                    item_alpha=ITEM_ALPHA,
+                    no_components=NUM_COMPONENTS)
+
+    # Run 3 epochs and time it.
+    model = model.fit(train, epochs=NUM_EPOCHS)
+
+    train_auc = auc_score(model, train).mean()
+    print('Collaborative filtering train AUC: %s' % train_auc)
+
+    test_auc = auc_score(model, test, train_interactions=train).mean()
+    print('Collaborative filtering test AUC: %s' % test_auc)
+
+    # Set biases to zero
+    model.item_biases *= 0.0
+
+    test_auc = auc_score(model, test, train_interactions=train).mean()
+    print('Collaborative filtering test AUC: %s' % test_auc)
+
+    item_features = data['item_features']
+    tag_labels = data['item_feature_labels']
+
+    print('There are %s distinct tags, with values like %s.' % (item_features.shape[1], tag_labels[:3].tolist()))
+
+    # Define a new model instance
+    model = LightFM(loss='warp',
+                    item_alpha=ITEM_ALPHA,
+                    no_components=NUM_COMPONENTS)
+
+    # Fit the hybrid model. Note that this time, we pass
+    # in the item features matrix.
+    model = model.fit(train,
+                      item_features=item_features,
+                      epochs=NUM_EPOCHS)
+
+    # Don't forget the pass in the item features again!
+    train_auc = auc_score(model,  train, item_features=item_features).mean()
+    print('Hybrid training set AUC: %s' % train_auc)
+
+    test_auc = auc_score(model,  test, train_interactions=train, item_features=item_features).mean()
+    print('Hybrid test set AUC: %s' % test_auc)
+
+@cli.command(help='validate stuff')
+@click.pass_context
+@click.argument('data_home', type=click.Path(exists=True), default='../../data/raw/stackexchange')
+def validate_item_features(ctx, data_home):
+
+    data = fetch_stackexchange('crossvalidated',
+                               test_set_fraction=0.1,
+                               indicator_features=False,
+                               tag_features=True, data_home=data_home)
+
+    train = data['train']
+    test = data['test']
+
+    # Set the number of threads; you can increase this
+    # ify you have more physical cores available.
+    NUM_COMPONENTS = 30
+    NUM_EPOCHS = 3
+    ITEM_ALPHA = 1e-6
+
+    # Let's fit a WARP model: these generally have the best performance.
+    model = LightFM(loss='warp',
+                    item_alpha=ITEM_ALPHA,
+                    no_components=NUM_COMPONENTS)
+
+    # Run 3 epochs and time it.
+    model = model.fit(train, epochs=NUM_EPOCHS)
+
+    train_auc = auc_score(model, train).mean()
+    print('Collaborative filtering train AUC: %s' % train_auc)
+
+    test_auc = auc_score(model, test, train_interactions=train).mean()
+    print('Collaborative filtering test AUC: %s' % test_auc)
+
+    # Set biases to zero
+    model.item_biases *= 0.0
+
+    test_auc = auc_score(model, test, train_interactions=train).mean()
+    print('Collaborative filtering test AUC: %s' % test_auc)
+
+    item_features = data['item_features']
+    tag_labels = data['item_feature_labels']
+
+    print('There are %s distinct tags, with values like %s.' % (item_features.shape[1], tag_labels[:3].tolist()))
+
+    # Define a new model instance
+    model = LightFM(loss='warp',
+                    item_alpha=ITEM_ALPHA,
+                    no_components=NUM_COMPONENTS)
+
+    # Fit the hybrid model. Note that this time, we pass
+    # in the item features matrix.
+    model = model.fit(train,
+                      item_features=item_features,
+                      epochs=NUM_EPOCHS)
+
+    # Don't forget the pass in the item features again!
+    train_auc = auc_score(model,  train, item_features=item_features).mean()
+    print('Hybrid training set AUC: %s' % train_auc)
+
+    test_auc = auc_score(model,  test, train_interactions=train, item_features=item_features).mean()
+    print('Hybrid test set AUC: %s' % test_auc)
+
 
 @cli.command(help='validate stuff')
 @click.pass_context
@@ -100,7 +227,7 @@ def validate(ctx, data_home):
 @click.option('-t', '--threads', default=1, help='model threads')
 def tune(ctx, input_file, model, loss, jobs, iter, verbose, threads):
 
-    df, train, test = load_dataset(input_file, format='pandas')
+    df, train, test = load_interactions_dataset(input_file, format='pandas')
     users_count = df.user_id.unique().shape[0]
     items_count = df.item_id.unique().shape[0]
     logger.info('Users: {}, items: {}, train{}, test{}, model: {}, loss: {}, jobs: {}, iter: {}'.format(users_count, items_count, model, loss,
@@ -118,20 +245,37 @@ def tune(ctx, input_file, model, loss, jobs, iter, verbose, threads):
 
 @cli.command(help='training recommender systems')
 @click.pass_context
-@click.argument('input_file', type=click.Path(exists=True), default='../../data/processed/2017.06.50-100.5000.csv')
-@click.option('-m', '--model', default='lightfm', help='model to tune')
+@click.argument('input_file', type=click.Path(exists=True), default='../../data/processed/aol_com/06/50.100.5000')
+@click.option('-m', '--model', default='lightfm', help='model to train')
 @click.option('-l', '--loss', default='warp', help='loss to optimize')
 @click.option('-v', '--verbose', default=10, help='level of verbosity')
 @click.option('-t', '--threads', default=1, help='model threads')
-def train(ctx, input_file,  model, loss, verbose, threads):
+def train(ctx, input_file, model, loss, verbose, threads):
 
-    train, test = load_dataset(input_file)
+    train = sp.load_npz(os.path.join(input_file, 'train.npz'))
+    test = sp.load_npz(os.path.join(input_file, 'test.npz'))
+    items = sp.load_npz(os.path.join(input_file, 'items.npz'))
+    segments = input_file.split('/')
+    conditions = segments[-1].split('.')
+
+    logger.info('Dataset, site: {}, months: {}, min_uv: {}, max_uv: {}, min_vv: {}, train: {}, test: {}'.format(
+        segments[-3].replace('_', '.'), segments[-2].split('.'), conditions[0], conditions[1], conditions[2], train.shape, test.shape))
+
     logger.info(
-        'model: {}, loss: {}, train: {}, test: {}'.format(model, loss, train.shape, test.shape))
+        'model: {}, loss: {}, item_alpha(L2): {} no_components: {}, learning_rate: {}'.format(model, loss, 1e-6, 30, 0.05))
 
-    model = LightFM(loss='warp', learning_rate=0.05)
-    model.fit(train, epochs=10, verbose=True)
-    evaluate_model(model, train, test)
+    model = LightFM(loss='warp', learning_rate=0.05, item_alpha=1e-6, no_components=30)
+    threads = multiprocessing.cpu_count() if threads == -1 else threads
+    model = model.fit(train, epochs=10, verbose=True, num_threads=threads)
+    logger.info('A pure collaborative filtering model')
+    evaluate_model(model, train, test, num_threads=threads)
+
+
+    model = LightFM(loss='warp', learning_rate=0.05, item_alpha=1e-6, no_components=30)
+    model = model.fit(train, item_features=items, epochs=10, verbose=True, num_threads=threads)
+    logger.info('A hybrid model')
+    evaluate_model(model, train, test,item_fetures=items, num_threads=threads)
+
 
 
 @cli.command(help='testing recommender systems')
